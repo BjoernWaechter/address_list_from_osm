@@ -16,7 +16,7 @@ def setup_env(venv_name, req_file):
 
 def prepare_hadoop():
     os.system(f"sudo -u hdfs hadoop fs -mkdir /user/{os.environ['USER']}")
-    os.system(f"sudo -u hdfs hadoop fs -chown ec2-user /user/{os.environ['USER']}")
+    os.system(f"sudo -u hdfs hadoop fs -chown {os.environ['USER']} /user/{os.environ['USER']}")
 
 
 if __name__ == '__main__':
