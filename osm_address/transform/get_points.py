@@ -63,8 +63,8 @@ def get_points_from_nodes_and_ways(
         f"ST_Centroid(way_polygon) as {point_column}"
     ).selectExpr(
         *extra_col_names,
-        "ST_X(address_point) as longitude",
-        "ST_Y(address_point) as latitude",
+        f"ST_X({point_column}) as longitude",
+        f"ST_Y({point_column}) as latitude",
         "tags",
         f"{point_column}"
     )

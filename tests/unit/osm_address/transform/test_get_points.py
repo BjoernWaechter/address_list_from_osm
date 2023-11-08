@@ -78,3 +78,34 @@ class TestRawAddress:
             StructField("tags", MapType(StringType(), StringType(), True), True),
             StructField("address_point", GeometryType(), True)
             ])
+
+    def test_get_raw_address_column_renamed(self, test_context):
+
+        df_result = get_points_from_nodes_and_ways(
+            osm_data=test_context.osm_data,
+            osm_filter=(
+                "(element_at(tags, 'addr:housenumber') IS NOT NULL OR "
+                "element_at(tags, 'addr:nohousenumber') = 'yes') AND "
+                "(element_at(tags, 'addr:street') IS NOT NULL OR  "
+                " element_at(tags, 'addr:place') IS NOT NULL)  "
+            ),
+            additional_columns={
+                "street": "IFNULL(element_at(tags, 'addr:street'), element_at(tags, 'addr:place') )",
+                "housenumber": "element_at(tags, 'addr:housenumber')",
+                "plz_raw": "element_at(tags, 'addr:postcode')",
+                "city_raw": "element_at(tags, 'addr:city')"
+            },
+            point_column="test_point"
+        )
+
+        assert df_result.schema == StructType([
+            StructField("street", StringType(), True),
+            StructField("housenumber", StringType(), True),
+            StructField("plz_raw", StringType(), True),
+            StructField("city_raw", StringType(), True),
+            StructField("id", StringType(), True),
+            StructField("longitude", DoubleType(), True),
+            StructField("latitude", DoubleType(), True),
+            StructField("tags", MapType(StringType(), StringType(), True), True),
+            StructField("test_point", GeometryType(), True)
+            ])
