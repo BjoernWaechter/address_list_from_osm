@@ -99,3 +99,27 @@ class TestDataframe:
         ).orderBy("id")
 
         assert df_result.count() == 3
+
+    def test_remove_duplicate_rows_with_alias_df(self, test_context):
+        data = [
+            (1, "ag", 1),
+            (1, "kas", 1)
+        ]
+
+        df_data = test_context.spark.createDataFrame(
+            data=data,
+            schema=StructType([
+                StructField("id", IntegerType(), False),
+                StructField("str", StringType(), True),
+                StructField("order_no", IntegerType(), False),
+            ])
+        )
+
+        df_result = remove_duplicate_rows(
+            df_input=df_data.alias("test"),
+            unique_col="test.id",
+            decision_col="test.order_no",
+            decision_max_first=False
+        ).orderBy("test.id")
+
+        assert df_result.count() == 1

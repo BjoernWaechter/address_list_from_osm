@@ -23,17 +23,20 @@ def remove_duplicate_rows(
         Dataframe with the same schema as the input with removed duplicates
 
     """
-    order_col = col(decision_col)
 
     if decision_max_first:
-        order_col = order_col.desc()
+        order_col = col(decision_col).desc_nulls_last()
+    else:
+        order_col = col(decision_col).asc_nulls_last()
 
     w = Window.partitionBy(unique_col).orderBy(order_col)
 
     df_input_ordered = df_input.withColumn(
-        f'{unique_col}_row_no', row_number().over(w)
+        f'{unique_col.replace(".","_")}_row_no', row_number().over(w)
     )
 
-    df_result = df_input_ordered.where(f'{unique_col}_row_no = 1').drop(f'{unique_col}_row_no')
+    df_result = df_input_ordered\
+        .where(f'{unique_col.replace(".","_")}_row_no = 1')\
+        .drop(f'{unique_col.replace(".","_")}_row_no')
 
     return df_result
