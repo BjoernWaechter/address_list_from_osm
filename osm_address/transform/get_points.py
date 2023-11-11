@@ -10,7 +10,8 @@ def get_points_from_nodes_and_ways(
         osm_filter: str,
         additional_columns=None,
         id_column=None,
-        point_column="address_point"
+        point_column="address_point",
+        centroids_only=True
 ) -> DataFrame:
     """
 
@@ -21,6 +22,7 @@ def get_points_from_nodes_and_ways(
         id_column:  If not None a column named id_column containing the source id will be added
                     for nodes (e.g. N98765) and ways (e.g. W12345)
         point_column: Name of the column in the result dataframe
+        centroids_only: True: return centroids only, False: return complete geometries of the ways
 
     Returns:
         dataframe with points from nodes plus the center of polygons from ways
@@ -61,6 +63,11 @@ def get_points_from_nodes_and_ways(
         *extra_way_columns
     )
 
+    if centroids_only:
+        node_geometry = f"ST_Centroid(way_polygon) as {point_column}"
+    else:
+        node_geometry = f"way_polygon as {point_column}"
+
     df_raw_address_way_geo = get_polygon_from_nodes(
         df_way=df_raw_address_way,
         df_node=osm_data.nodes,
@@ -68,7 +75,7 @@ def get_points_from_nodes_and_ways(
         way_id_column_name=id_column_name
     ).selectExpr(
         "*",
-        f"ST_Centroid(way_polygon) as {point_column}"
+        node_geometry
     ).selectExpr(
         *extra_col_names,
         f"ST_X({point_column}) as longitude",
