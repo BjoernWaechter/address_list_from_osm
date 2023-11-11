@@ -76,7 +76,8 @@ class GermanAddresses:
                 "housenumber": "element_at(tags, 'addr:housenumber')",
                 "plz_raw": "element_at(tags, 'addr:postcode')",
                 "city_raw": "element_at(tags, 'addr:city')"
-            }
+            },
+            id_column="id"
         )
 
         df_temp = join_point_in_multipolygon(
@@ -87,7 +88,7 @@ class GermanAddresses:
         )
 
         df_address_with_plz = df_temp.selectExpr(
-            "point.id",
+            "id",
             "street",
             "housenumber",
             "IFNULL(plz_raw, plz) plz",
@@ -102,7 +103,7 @@ class GermanAddresses:
             df_polygon=df_city,
             polygon_column="multipolygon"
         ).selectExpr(
-            "point.id",
+            "id",
             "street",
             "housenumber",
             "plz",

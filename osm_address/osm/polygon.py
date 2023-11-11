@@ -11,7 +11,8 @@ NODE_COL_PREFIX = "node_"
 def get_polygon_from_nodes(
         df_way: DataFrame,
         df_node: DataFrame,
-        output_col: str
+        output_col: str,
+        way_id_column_name="id"
 ) -> DataFrame:
     """
 
@@ -19,6 +20,7 @@ def get_polygon_from_nodes(
         df_way: dataframe with a column containing an array of nodes
         df_node: dataframe with columns id, latitude, longitude
         output_col: name of the result column
+        way_id_column_name: unique id in the df_way data frame
 
     Returns:
         DataFrame: with columns
@@ -59,7 +61,7 @@ def get_polygon_from_nodes(
     df_node_list = aggregate_column_to_list(
         df_in=df_wrapped_node,
         collect_column="node_struct",
-        group_by_columns=["id"],
+        group_by_columns=[way_id_column_name],
         result_column="node_list"
     )
 

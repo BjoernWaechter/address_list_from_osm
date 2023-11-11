@@ -21,7 +21,8 @@ class TestRawAddress:
                 "housenumber": "element_at(tags, 'addr:housenumber')",
                 "plz_raw": "element_at(tags, 'addr:postcode')",
                 "city_raw": "element_at(tags, 'addr:city')"
-            }
+            },
+            id_column="id"
         )
 
         assert df_result.count() == 156
@@ -103,6 +104,27 @@ class TestRawAddress:
             StructField("housenumber", StringType(), True),
             StructField("plz_raw", StringType(), True),
             StructField("city_raw", StringType(), True),
+            StructField("longitude", DoubleType(), True),
+            StructField("latitude", DoubleType(), True),
+            StructField("tags", MapType(StringType(), StringType(), True), True),
+            StructField("test_point", GeometryType(), True)
+            ])
+
+    def test_get_raw_address_without_add_cols(self, test_context):
+
+        df_result = get_points_from_nodes_and_ways(
+            osm_data=test_context.osm_data,
+            osm_filter=(
+                "(element_at(tags, 'addr:housenumber') IS NOT NULL OR "
+                "element_at(tags, 'addr:nohousenumber') = 'yes') AND "
+                "(element_at(tags, 'addr:street') IS NOT NULL OR  "
+                " element_at(tags, 'addr:place') IS NOT NULL)  "
+            ),
+            point_column="test_point",
+            id_column="id"
+        )
+
+        assert df_result.schema == StructType([
             StructField("id", StringType(), True),
             StructField("longitude", DoubleType(), True),
             StructField("latitude", DoubleType(), True),

@@ -1,3 +1,5 @@
+import random
+
 from pyspark.sql import DataFrame
 
 from osm_address.osm import OsmData, get_polygon_from_nodes
@@ -7,7 +9,7 @@ def get_points_from_nodes_and_ways(
         osm_data: OsmData,
         osm_filter: str,
         additional_columns=None,
-        add_type_based_ids=True,
+        id_column=None,
         point_column="address_point"
 ) -> DataFrame:
     """
@@ -16,7 +18,8 @@ def get_points_from_nodes_and_ways(
         osm_data: input of all osm data of a specific region
         osm_filter: this filter will be applied to nodes and ways
         additional_columns: these columns will be added for both nodes and ways
-        add_type_based_ids: If True ids for nodes (e.g. N98765) and ways (e.g. W12345) will be added
+        id_column:  If not None a column named id_column containing the source id will be added
+                    for nodes (e.g. N98765) and ways (e.g. W12345)
         point_column: Name of the column in the result dataframe
 
     Returns:
@@ -35,10 +38,14 @@ def get_points_from_nodes_and_ways(
         extra_way_columns = [f"{x[1]} as {x[0]}" for x in additional_columns.items()]
         extra_col_names = list(additional_columns.keys())
 
-        if add_type_based_ids:
-            extra_node_columns += ["concat('N', id) as id"]
-            extra_way_columns += ["concat('W', id) as id"]
-            extra_col_names += ["id"]
+    if id_column:
+        id_column_name = id_column
+    else:
+        id_column_name = f"id_{random.randint(1,999999)}"
+
+    extra_col_names += [id_column_name]
+    extra_node_columns += [f"concat('N', id) as {id_column_name}"]
+    extra_way_columns += [f"concat('W', id) as {id_column_name}"]
 
     df_raw_address_node = df_raw_address_node.selectExpr(
         *extra_node_columns,
@@ -57,7 +64,8 @@ def get_points_from_nodes_and_ways(
     df_raw_address_way_geo = get_polygon_from_nodes(
         df_way=df_raw_address_way,
         df_node=osm_data.nodes,
-        output_col="way_polygon"
+        output_col="way_polygon",
+        way_id_column_name=id_column_name
     ).selectExpr(
         "*",
         f"ST_Centroid(way_polygon) as {point_column}"
@@ -71,4 +79,7 @@ def get_points_from_nodes_and_ways(
 
     df_raw_address = df_raw_address_node.union(df_raw_address_way_geo)
 
-    return df_raw_address
+    if not id_column:
+        return df_raw_address.drop(id_column_name)
+    else:
+        return df_raw_address
