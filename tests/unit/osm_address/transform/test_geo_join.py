@@ -1,9 +1,12 @@
 import pytest
-from pyspark.sql.types import StructField, StructType, StringType
+from pyspark.sql.functions import expr
+from pyspark.sql.types import StructField, StructType, StringType, Row
 from sedona.sql.types import GeometryType
 
 from osm_address.transform import (create_border_polygons,
                                    join_point_in_multipolygon)
+from osm_address.transform.geo_join import join_nearest_geometry
+from osm_address.transform.get_points import get_points_from_nodes_and_ways
 
 
 class TestGeoJoin:
@@ -158,3 +161,61 @@ class TestGeoJoin:
             )
         assert "'region' in data frame df_polygon is of type" in str(excinfo)
 
+    def test_nearest_point_to_point(self, test_context):
+
+        df_hospital = get_points_from_nodes_and_ways(
+            osm_data=test_context.osm_data,
+            osm_filter="element_at(tags, 'amenity') = 'hospital'",
+            point_column=f"hospital_point",
+            id_column="hospital_id",
+            centroids_only=True
+        ).drop(
+            "longitude",
+            "latitude",
+            "tags"
+        )
+
+        df_pharmacy = get_points_from_nodes_and_ways(
+            osm_data=test_context.osm_data,
+            osm_filter="element_at(tags, 'amenity') = 'pharmacy'",
+            additional_columns={"hospital": "element_at(tags, 'name')"},
+            point_column=f"pharmacy_point",
+            id_column="pharmacy_id",
+            centroids_only=True
+        ).drop(
+            "longitude",
+            "latitude",
+            "tags"
+        )
+
+        df_join = join_nearest_geometry(
+            df_in_1=df_hospital,
+            df_in_2=df_pharmacy,
+            column_name_1="hospital_point",
+            column_name_2="pharmacy_point",
+            partition_count=4,
+            distance_meter_column="distance",
+            max_meter=6000,
+            join_type="leftouter"
+        ).withColumn(
+            "distance_rounded",
+            expr("ROUND(distance)")
+        ).orderBy(
+            "hospital_id"
+        ).select(
+            "hospital_id",
+            "pharmacy_id",
+            "distance_rounded"
+        )
+
+        assert df_join.collect() == [
+            Row(hospital_id='N2050364490', pharmacy_id='N2050466659', distance_rounded=812.0),
+            Row(hospital_id='N4942543822', pharmacy_id='N690708548', distance_rounded=441.0),
+            Row(hospital_id='N522787974', pharmacy_id='N590463655', distance_rounded=1167.0),
+            Row(hospital_id='N5262330928', pharmacy_id='N4984739294', distance_rounded=1626.0),
+            Row(hospital_id='N666793601', pharmacy_id='N4984739294', distance_rounded=5434.0),
+            Row(hospital_id='N666793602', pharmacy_id='N4984739294', distance_rounded=4127.0),
+            Row(hospital_id='N666793607', pharmacy_id='N690708520', distance_rounded=5929.0),
+            Row(hospital_id='N666793610', pharmacy_id=None, distance_rounded=None),
+            Row(hospital_id='W194554955', pharmacy_id='N5723978577', distance_rounded=310.0)
+        ]

@@ -292,7 +292,7 @@ def create_polygon(points, pos_prefix):
         h[f"{pos_prefix}latitude"]
     ) for h in points]
 
-    if len(raw_points) >= 4:
+    if len(raw_points) >= 4 and raw_points[0] == raw_points[-1]:
         return Polygon(shell=raw_points)
     elif len(raw_points) == 1:
         return Point(raw_points[0])

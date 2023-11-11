@@ -1,6 +1,11 @@
+import random
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import expr
 from sedona.sql.types import GeometryType
+
+from osm_address.transform import remove_duplicate_rows
+from osm_address.utils.schema import check_for_duplicate_columns
 
 
 def join_point_in_multipolygon(
@@ -37,3 +42,74 @@ def join_point_in_multipolygon(
     )
 
     return df_result
+
+
+def join_nearest_geometry(
+        df_in_1: DataFrame,
+        df_in_2: DataFrame,
+        column_name_1: str,
+        column_name_2: str,
+        epsg_1="epsg:4326",
+        epsg_2="epsg:4326",
+        epsg_meter_based="epsg:25832",
+        partition_count=1000,
+        distance_meter_column="distance",
+        max_meter=5000,
+        join_type="leftouter"
+
+):
+    check_for_duplicate_columns(
+        df_1=df_in_1,
+        df_2=df_in_2
+    )
+
+    unique_id_col = f"uniqueid_{random.randint(1,999999)}"
+
+    epsg_col_1 = f"{column_name_1}_{epsg_meter_based.replace(':','_')}"
+    epsg_col_2 = f"{column_name_2}_{epsg_meter_based.replace(':', '_')}"
+
+    df_in_1_epsg = df_in_1.withColumn(
+        epsg_col_1,
+        expr(f"ST_Transform({column_name_1}, '{epsg_1}', '{epsg_meter_based}')")
+    ).withColumn(
+        unique_id_col,
+        expr("monotonically_increasing_id()")
+    )
+
+    df_in_2_epsg = df_in_2.withColumn(
+        epsg_col_2,
+        expr(f"ST_Transform({column_name_2}, '{epsg_2}', '{epsg_meter_based}')")
+    )
+
+    df_max_distance = df_in_1_epsg.repartition(partition_count).join(
+        other=df_in_2_epsg,
+        on=expr(f"ST_Distance("
+                f"{epsg_col_1}, "
+                f"{epsg_col_2}) <= {max_meter}"),
+        how=join_type
+    )
+
+    df_dist_result = df_max_distance.withColumn(
+        distance_meter_column,
+        expr(
+            f"CASE "
+            f"   WHEN {column_name_2}_{epsg_meter_based.replace(':','_')} IS NOT NULL THEN "
+            f"      ST_Distance("
+            f"{epsg_col_1}, "
+            f"{epsg_col_2}) "
+            f"   ELSE NULL "
+            f"END")
+    )
+
+    df_nearest_only = remove_duplicate_rows(
+        df_input=df_dist_result,
+        unique_col=unique_id_col,
+        decision_col=distance_meter_column,
+        decision_max_first=False
+    ).drop(
+        unique_id_col,
+        epsg_col_1,
+        epsg_col_2
+    )
+
+    return df_nearest_only
