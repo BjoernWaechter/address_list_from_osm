@@ -179,7 +179,7 @@ def get_integer_num(n: str):
     try:
         i = int(n)
         return i
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         return None
 
 
@@ -197,7 +197,7 @@ def is_odd(num):
     """
     try:
         return int(num) % 2
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         return -1
 
 
@@ -215,8 +215,12 @@ def udf_explode_housenumber(s: pd.Series) -> pd.Series:
            13a-c: [13a, 13b, 13c, 13a-c]
 
     """
-    pattern_num_with_chars = re.compile(r"^([0-9]+)([a-z])-([a-z])")
-    pattern_num_twice_with_chars = re.compile(r"^([0-9]+)([a-z])-([0-9]+)([a-z])")
+    pattern_num_with_chars = re.compile(
+        r"^([0-9]+)([a-z])-([a-z])"
+    )
+    pattern_num_twice_with_chars = re.compile(
+        r"^([0-9]+)([a-z])-([0-9]+)([a-z])"
+    )
 
     def hsnr_2_array(hnr):
         if "-" in hnr:

@@ -63,15 +63,11 @@ class TestOsmPbf:
                                     StructField("userId", IntegerType(), True),
                                     StructField("userName", StringType(), True),
                                     StructField("visible", BooleanType(), True)
-                                ])
-                            , True)
+                                ]),
+                            True)
             ]
         )
 
         assert res.nodes.schema == schema
         assert res.ways.schema == schema
         assert res.relations.schema == schema
-
-
-
-

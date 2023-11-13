@@ -1,3 +1,4 @@
+# flake8: noqa: F401
 from osm_address.transform.columns import add_column_prefix as add_column_prefix
 from osm_address.transform.columns import wrap_columns_into_struct as wrap_columns_into_struct, \
     aggregate_column_to_list as aggregate_column_to_list

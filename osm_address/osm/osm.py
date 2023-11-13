@@ -7,4 +7,3 @@ class OsmData:
     nodes: DataFrame
     ways: DataFrame
     relations: DataFrame
-

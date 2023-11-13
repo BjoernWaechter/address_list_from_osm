@@ -131,7 +131,7 @@ class GermanAddresses:
             "org_housenumber"
         ).selectExpr(
             "*",
-            f"explode(hnr_array) as housenumber"
+            "explode(hnr_array) as housenumber"
         ).drop(
             "hnr_array",
             "org_housenumber"

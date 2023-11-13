@@ -15,8 +15,7 @@ class TestGeoJoin:
 
         df_polygon = create_border_polygons(
             osm_data=test_context.osm_data,
-            relation_filter=
-            "id=9407",  # Andorra
+            relation_filter="id=9407",  # Andorra
             additional_columns={
                 "region": "IFNULL(element_at(tags, 'name:de'), element_at(tags, 'name'))"
             },
@@ -48,8 +47,7 @@ class TestGeoJoin:
 
         df_polygon = create_border_polygons(
             osm_data=test_context.osm_data,
-            relation_filter=
-            "id=9407",  # Andorra
+            relation_filter="id=9407",  # Andorra
             additional_columns={
                 "region": "IFNULL(element_at(tags, 'name:de'), element_at(tags, 'name'))"
             },
@@ -76,8 +74,7 @@ class TestGeoJoin:
 
         df_polygon = create_border_polygons(
             osm_data=test_context.osm_data,
-            relation_filter=
-            "id=2800131",  # Parc Natural de l'Alt Pirineu
+            relation_filter="id=2800131",  # Parc Natural de l'Alt Pirineu
             additional_columns={
                 "region": "IFNULL(element_at(tags, 'name:de'), element_at(tags, 'name'))"
             },
@@ -105,8 +102,7 @@ class TestGeoJoin:
 
         df_polygon = create_border_polygons(
             osm_data=test_context.osm_data,
-            relation_filter=
-            "id=9407",  # Andorra
+            relation_filter="id=9407",  # Andorra
             additional_columns={
                 "region": "IFNULL(element_at(tags, 'name:de'), element_at(tags, 'name'))"
             },
@@ -166,7 +162,7 @@ class TestGeoJoin:
         df_hospital = get_points_from_nodes_and_ways(
             osm_data=test_context.osm_data,
             osm_filter="element_at(tags, 'amenity') = 'hospital'",
-            point_column=f"hospital_point",
+            point_column="hospital_point",
             id_column="hospital_id",
             centroids_only=True
         ).drop(
@@ -179,7 +175,7 @@ class TestGeoJoin:
             osm_data=test_context.osm_data,
             osm_filter="element_at(tags, 'amenity') = 'pharmacy'",
             additional_columns={"hospital": "element_at(tags, 'name')"},
-            point_column=f"pharmacy_point",
+            point_column="pharmacy_point",
             id_column="pharmacy_id",
             centroids_only=True
         ).drop(

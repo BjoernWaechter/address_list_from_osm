@@ -42,8 +42,7 @@ class TestCreateBorders:
 
         df_res = create_border_polygons(
             osm_data=test_context.osm_data,
-            relation_filter=
-            "id=7790585",
+            relation_filter="id=7790585",
             additional_columns={
                 "region": "IFNULL(element_at(tags, 'name:de'), element_at(tags, 'name'))"
             },
@@ -67,8 +66,7 @@ class TestCreateBorders:
 
         df_res = create_border_polygons(
             osm_data=test_context.osm_data,
-            relation_filter=
-            "id=7790585 OR 1=1",
+            relation_filter="id=7790585 OR 1=1",
             additional_columns={
                 "region": "IFNULL(element_at(tags, 'name:de'), element_at(tags, 'name'))"
             },

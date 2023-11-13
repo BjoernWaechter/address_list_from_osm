@@ -45,9 +45,9 @@ class TestPolygon:
 
         geo_data = df_res.collect()
 
-        assert type(geo_data[0]["test_geo"]) == Polygon
-        assert type(geo_data[1]["test_geo"]) == LineString
-        assert type(geo_data[2]["test_geo"]) == Point
+        assert isinstance(geo_data[0]["test_geo"], Polygon)
+        assert isinstance(geo_data[1]["test_geo"], LineString)
+        assert isinstance(geo_data[2]["test_geo"], Point)
 
     def test_get_polygon_from_nodes_schema(self, test_context):
 

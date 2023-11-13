@@ -14,4 +14,3 @@ def check_for_duplicate_columns(
 
     if len(intersect_cols) > 0:
         raise RuntimeError(f"Dataframes have these columns in common: \"{', '.join(intersect_cols)}\"")
-

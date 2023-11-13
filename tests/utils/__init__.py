@@ -9,4 +9,3 @@ def generic_row_with_schema(data, schema):
         i += 1
 
     return Row(**result_data)
-

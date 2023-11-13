@@ -26,7 +26,7 @@ def explode_col(
     """
     try:
         input_col_index = df_in.columns.index(column)
-    except ValueError as e:
+    except ValueError:
         raise ValueError(f"Column {column} is not in list of columns: {df_in.columns}")
     new_columns = []
 
@@ -67,4 +67,3 @@ def explode_col(
     )
 
     return df_exploded
-

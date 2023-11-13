@@ -42,9 +42,9 @@ def get_polygon_from_nodes(
 
     df_with_pos = df_way_with_node_ids.alias("way").join(
         df_node_simple.alias("node"),
-        col(f"way.way_node_id") == col(f"node.{NODE_COL_PREFIX}id")
+        col("way.way_node_id") == col(f"node.{NODE_COL_PREFIX}id")
     ).drop(
-        f"way_node_id"
+        "way_node_id"
     )
 
     df_wrapped_node = wrap_columns_into_struct(
