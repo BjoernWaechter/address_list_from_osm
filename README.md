@@ -1,4 +1,5 @@
 # address_list_from_osm
+![Coverage Status](coverage/coverage.svg)  
 Create a list of residential addresses from OpenStreetMap data
 
 ## Development
