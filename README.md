@@ -1,5 +1,7 @@
 # address_list_from_osm
-![Coverage Status](coverage/coverage.svg)  
+[![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+![Coverage Status](coverage/coverage.svg) 
+![Status main](https://github.com/BjoernWaechter/address_list_from_osm/actions/workflows/python-app.yml/badge.svg?branch=main)  
 Create a list of residential addresses from OpenStreetMap data
 
 ## Development
