@@ -10,7 +10,7 @@ def setup_env(venv_name, req_file):
     virtualenvs_folder = os.path.expanduser("~/.virtualenvs")
     venv_dir = os.path.join(virtualenvs_folder, venv_name)
     virtualenv.cli_run([venv_dir])
-    cmd = f". {virtualenvs_folder}/{venv_name}/bin/activate && pip install -r {req_file} && pip install {SCRIPT_PATH}"
+    cmd = f". {virtualenvs_folder}/{venv_name}/bin/activate && pip3 install -r {req_file} && pip3 install {SCRIPT_PATH}"
     os.system(cmd)
 
 

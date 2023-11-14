@@ -6,7 +6,13 @@ setup(
    description='Module to handle OSM data for address extraction',
    author='Björn Wächter',
    author_email='bjoern@waechterei.de',
-   packages=find_packages(include=['osm_address', 'osm_address.*']),
+   packages=find_packages(include=[
+      'osm_address',
+      'osm_address.osm',
+      'osm_address.transform',
+      'osm_address.udf',
+      'osm_address.utils'
+   ]),
    install_requires=[
       'apache-sedona>=1.5.0',
       'pyarrow==14.0.1',
