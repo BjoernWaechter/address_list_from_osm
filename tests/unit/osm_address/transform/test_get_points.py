@@ -17,11 +17,14 @@ class TestRawAddress:
                 "(element_at(tags, 'addr:street') IS NOT NULL OR  "
                 " element_at(tags, 'addr:place') IS NOT NULL)  "
             ),
+            centroid_column="address_point",
             additional_columns={
                 "street": "IFNULL(element_at(tags, 'addr:street'), element_at(tags, 'addr:place') )",
                 "housenumber": "element_at(tags, 'addr:housenumber')",
                 "plz_raw": "element_at(tags, 'addr:postcode')",
-                "city_raw": "element_at(tags, 'addr:city')"
+                "city_raw": "element_at(tags, 'addr:city')",
+                "longitude": "ST_X(address_point)",
+                "latitude": "ST_Y(address_point)"
             },
             id_column="id"
         )
@@ -74,10 +77,9 @@ class TestRawAddress:
             StructField("housenumber", StringType(), True),
             StructField("plz_raw", StringType(), True),
             StructField("city_raw", StringType(), True),
-            StructField("id", StringType(), True),
             StructField("longitude", DoubleType(), True),
             StructField("latitude", DoubleType(), True),
-            StructField("tags", MapType(StringType(), StringType(), True), True),
+            StructField("id", StringType(), True),
             StructField("address_point", GeometryType(), True)
             ])
 
@@ -95,10 +97,12 @@ class TestRawAddress:
                 "street": "IFNULL(element_at(tags, 'addr:street'), element_at(tags, 'addr:place') )",
                 "housenumber": "element_at(tags, 'addr:housenumber')",
                 "plz_raw": "element_at(tags, 'addr:postcode')",
-                "city_raw": "element_at(tags, 'addr:city')"
+                "city_raw": "element_at(tags, 'addr:city')",
+                "longitude": "ST_X(ST_Centroid(address_point))",
+                "latitude": "ST_Y(ST_Centroid(address_point))"
             },
             id_column="id",
-            centroids_only=False
+            geometry_column="address_point"
         )
 
         assert df_result.count() == 156
@@ -149,10 +153,9 @@ class TestRawAddress:
             StructField("housenumber", StringType(), True),
             StructField("plz_raw", StringType(), True),
             StructField("city_raw", StringType(), True),
-            StructField("id", StringType(), True),
             StructField("longitude", DoubleType(), True),
             StructField("latitude", DoubleType(), True),
-            StructField("tags", MapType(StringType(), StringType(), True), True),
+            StructField("id", StringType(), True),
             StructField("address_point", GeometryType(), True)
             ])
 
@@ -180,9 +183,11 @@ class TestRawAddress:
                 "street": "IFNULL(element_at(tags, 'addr:street'), element_at(tags, 'addr:place') )",
                 "housenumber": "element_at(tags, 'addr:housenumber')",
                 "plz_raw": "element_at(tags, 'addr:postcode')",
-                "city_raw": "element_at(tags, 'addr:city')"
+                "city_raw": "element_at(tags, 'addr:city')",
+                "longitude": "ST_X(test_point)",
+                "latitude": "ST_Y(test_point)"
             },
-            point_column="test_point"
+            geometry_column="test_point"
         )
 
         assert df_result.schema == StructType([
@@ -192,7 +197,6 @@ class TestRawAddress:
             StructField("city_raw", StringType(), True),
             StructField("longitude", DoubleType(), True),
             StructField("latitude", DoubleType(), True),
-            StructField("tags", MapType(StringType(), StringType(), True), True),
             StructField("test_point", GeometryType(), True)
             ])
 
@@ -206,14 +210,17 @@ class TestRawAddress:
                 "(element_at(tags, 'addr:street') IS NOT NULL OR  "
                 " element_at(tags, 'addr:place') IS NOT NULL)  "
             ),
-            point_column="test_point",
+            additional_columns={
+                "longitude": "ST_X(test_point)",
+                "latitude": "ST_Y(test_point)"
+            },
+            geometry_column="test_point",
             id_column="id"
         )
 
         assert df_result.schema == StructType([
-            StructField("id", StringType(), True),
             StructField("longitude", DoubleType(), True),
             StructField("latitude", DoubleType(), True),
-            StructField("tags", MapType(StringType(), StringType(), True), True),
+            StructField("id", StringType(), True),
             StructField("test_point", GeometryType(), True)
             ])

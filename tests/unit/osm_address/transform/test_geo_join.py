@@ -162,9 +162,8 @@ class TestGeoJoin:
         df_hospital = get_points_from_nodes_and_ways(
             osm_data=test_context.osm_data,
             osm_filter="element_at(tags, 'amenity') = 'hospital'",
-            point_column="hospital_point",
-            id_column="hospital_id",
-            centroids_only=True
+            centroid_column="hospital_point",
+            id_column="hospital_id"
         ).drop(
             "longitude",
             "latitude",
@@ -175,9 +174,8 @@ class TestGeoJoin:
             osm_data=test_context.osm_data,
             osm_filter="element_at(tags, 'amenity') = 'pharmacy'",
             additional_columns={"hospital": "element_at(tags, 'name')"},
-            point_column="pharmacy_point",
-            id_column="pharmacy_id",
-            centroids_only=True
+            centroid_column="pharmacy_point",
+            id_column="pharmacy_id"
         ).drop(
             "longitude",
             "latitude",
@@ -214,4 +212,195 @@ class TestGeoJoin:
             Row(hospital_id='N666793607', pharmacy_id='N690708520', distance_rounded=5929.0),
             Row(hospital_id='N666793610', pharmacy_id=None, distance_rounded=None),
             Row(hospital_id='W194554955', pharmacy_id='N5723978577', distance_rounded=310.0)
+        ]
+
+    def test_nearest_point_to_polygon(self, test_context):
+
+        df_hospital = get_points_from_nodes_and_ways(
+            osm_data=test_context.osm_data,
+            osm_filter="element_at(tags, 'amenity') = 'hospital'",
+            geometry_column="hospital_geom",
+            id_column="hospital_id"
+        ).drop(
+            "longitude",
+            "latitude",
+            "tags"
+        )
+
+        df_pharmacy = get_points_from_nodes_and_ways(
+            osm_data=test_context.osm_data,
+            osm_filter="element_at(tags, 'amenity') = 'pharmacy'",
+            additional_columns={"hospital": "element_at(tags, 'name')"},
+            centroid_column="pharmacy_point",
+            id_column="pharmacy_id"
+        ).drop(
+            "longitude",
+            "latitude",
+            "tags"
+        )
+
+        df_join = join_nearest_geometry(
+            df_in_1=df_hospital,
+            df_in_2=df_pharmacy,
+            column_name_1="hospital_geom",
+            column_name_2="pharmacy_point",
+            partition_count=4,
+            distance_meter_column="distance",
+            max_meter=6000,
+            join_type="leftouter"
+        ).withColumn(
+            "distance_rounded",
+            expr("ROUND(distance)")
+        ).orderBy(
+            "hospital_id"
+        ).select(
+            "hospital_id",
+            "pharmacy_id",
+            "distance_rounded"
+        )
+
+        assert df_join.collect() == [
+            Row(hospital_id='N2050364490', pharmacy_id='N2050466659', distance_rounded=812.0),
+            Row(hospital_id='N4942543822', pharmacy_id='N690708548', distance_rounded=441.0),
+            Row(hospital_id='N522787974', pharmacy_id='N590463655', distance_rounded=1167.0),
+            Row(hospital_id='N5262330928', pharmacy_id='N4984739294', distance_rounded=1626.0),
+            Row(hospital_id='N666793601', pharmacy_id='N4984739294', distance_rounded=5434.0),
+            Row(hospital_id='N666793602', pharmacy_id='N4984739294', distance_rounded=4127.0),
+            Row(hospital_id='N666793607', pharmacy_id='N690708520', distance_rounded=5929.0),
+            Row(hospital_id='N666793610', pharmacy_id=None, distance_rounded=None),
+            Row(hospital_id='W194554955', pharmacy_id='N5723978577', distance_rounded=261.0)
+        ]
+
+    def test_nearest_point_to_polygon_with_closest1(self, geo_join_context):
+
+        df_join = join_nearest_geometry(
+            df_in_1=geo_join_context["df_hospital"],
+            df_in_2=geo_join_context["df_pharmacy"],
+            column_name_1="hospital_geom",
+            column_name_2="pharmacy_point",
+            partition_count=4,
+            distance_meter_column="distance",
+            max_meter=6000,
+            join_type="leftouter",
+            closest_point_column_1="hospital_close_point"
+        ).withColumn(
+            "distance_rounded",
+            expr("ROUND(distance)")
+        ).orderBy(
+            "hospital_id"
+        ).selectExpr(
+            "hospital_id",
+            "pharmacy_id",
+            "distance_rounded",
+            "ST_AsText(ST_ReducePrecision(hospital_close_point,2)) AS hospital_close_point"
+        )
+
+        assert df_join.collect() == [
+            Row(hospital_id='N2050364490', pharmacy_id='N2050466659', distance_rounded=812.0,
+                hospital_close_point='POINT (1.49 42.47)'),
+            Row(hospital_id='N4942543822', pharmacy_id='N690708548', distance_rounded=441.0,
+                hospital_close_point='POINT (1.73 42.55)'),
+            Row(hospital_id='N522787974', pharmacy_id='N590463655', distance_rounded=1167.0,
+                hospital_close_point='POINT (1.47 42.57)'),
+            Row(hospital_id='N5262330928', pharmacy_id='N4984739294', distance_rounded=1626.0,
+                hospital_close_point='POINT (1.57 42.55)'),
+            Row(hospital_id='N666793601', pharmacy_id='N4984739294', distance_rounded=5434.0,
+                hospital_close_point='POINT (1.65 42.55)'),
+            Row(hospital_id='N666793602', pharmacy_id='N4984739294', distance_rounded=4127.0,
+                hospital_close_point='POINT (1.63 42.55)'),
+            Row(hospital_id='N666793607', pharmacy_id='N690708520', distance_rounded=5929.0,
+                hospital_close_point='POINT (1.66 42.54)'),
+            Row(hospital_id='N666793610', pharmacy_id=None, distance_rounded=None,
+                hospital_close_point=None),
+            Row(hospital_id='W194554955', pharmacy_id='N5723978577', distance_rounded=261.0,
+                hospital_close_point='POINT (1.53 42.51)')
+        ]
+
+    def test_nearest_point_to_polygon_with_closest2(self, geo_join_context):
+        df_join = join_nearest_geometry(
+            df_in_1=geo_join_context["df_hospital"],
+            df_in_2=geo_join_context["df_pharmacy"],
+            column_name_1="hospital_geom",
+            column_name_2="pharmacy_point",
+            partition_count=4,
+            distance_meter_column="distance",
+            max_meter=6000,
+            join_type="leftouter",
+            closest_point_column_2="pharmacy_close_point"
+        ).withColumn(
+            "distance_rounded",
+            expr("ROUND(distance)")
+        ).orderBy(
+            "hospital_id"
+        ).selectExpr(
+            "hospital_id",
+            "pharmacy_id",
+            "distance_rounded",
+            "ST_AsText(ST_ReducePrecision(pharmacy_close_point,2)) AS pharmacy_close_point"
+        )
+
+        assert df_join.collect() == [
+            Row(hospital_id='N2050364490', pharmacy_id='N2050466659', distance_rounded=812.0,
+                pharmacy_close_point='POINT (1.49 42.46)'),
+            Row(hospital_id='N4942543822', pharmacy_id='N690708548', distance_rounded=441.0,
+                pharmacy_close_point='POINT (1.73 42.54)'),
+            Row(hospital_id='N522787974', pharmacy_id='N590463655', distance_rounded=1167.0,
+                pharmacy_close_point='POINT (1.48 42.57)'),
+            Row(hospital_id='N5262330928', pharmacy_id='N4984739294', distance_rounded=1626.0,
+                pharmacy_close_point='POINT (1.58 42.54)'),
+            Row(hospital_id='N666793601', pharmacy_id='N4984739294', distance_rounded=5434.0,
+                pharmacy_close_point='POINT (1.58 42.54)'),
+            Row(hospital_id='N666793602', pharmacy_id='N4984739294', distance_rounded=4127.0,
+                pharmacy_close_point='POINT (1.58 42.54)'),
+            Row(hospital_id='N666793607', pharmacy_id='N690708520', distance_rounded=5929.0,
+                pharmacy_close_point='POINT (1.73 42.54)'),
+            Row(hospital_id='N666793610', pharmacy_id=None, distance_rounded=None, pharmacy_close_point=None),
+            Row(hospital_id='W194554955', pharmacy_id='N5723978577', distance_rounded=261.0,
+                pharmacy_close_point='POINT (1.53 42.51)')
+        ]
+
+    def test_nearest_point_to_polygon_with_closest1and2(self, geo_join_context):
+        df_join = join_nearest_geometry(
+            df_in_1=geo_join_context["df_hospital"],
+            df_in_2=geo_join_context["df_pharmacy"],
+            column_name_1="hospital_geom",
+            column_name_2="pharmacy_point",
+            partition_count=4,
+            distance_meter_column="distance",
+            max_meter=6000,
+            join_type="leftouter",
+            closest_point_column_1="hospital_close_point",
+            closest_point_column_2="pharmacy_close_point"
+        ).withColumn(
+            "distance_rounded",
+            expr("ROUND(distance)")
+        ).orderBy(
+            "hospital_id"
+        ).selectExpr(
+            "hospital_id",
+            "pharmacy_id",
+            "distance_rounded",
+            "ST_AsText(ST_ReducePrecision(hospital_close_point,2)) AS hospital_close_point",
+            "ST_AsText(ST_ReducePrecision(pharmacy_close_point,2)) AS pharmacy_close_point"
+        )
+
+        assert df_join.collect() == [
+            Row(hospital_id='N2050364490', pharmacy_id='N2050466659', distance_rounded=812.0,
+                hospital_close_point='POINT (1.49 42.47)', pharmacy_close_point='POINT (1.49 42.46)'),
+            Row(hospital_id='N4942543822', pharmacy_id='N690708548', distance_rounded=441.0,
+                hospital_close_point='POINT (1.73 42.55)', pharmacy_close_point='POINT (1.73 42.54)'),
+            Row(hospital_id='N522787974', pharmacy_id='N590463655', distance_rounded=1167.0,
+                hospital_close_point='POINT (1.47 42.57)', pharmacy_close_point='POINT (1.48 42.57)'),
+            Row(hospital_id='N5262330928', pharmacy_id='N4984739294', distance_rounded=1626.0,
+                hospital_close_point='POINT (1.57 42.55)', pharmacy_close_point='POINT (1.58 42.54)'),
+            Row(hospital_id='N666793601', pharmacy_id='N4984739294', distance_rounded=5434.0,
+                hospital_close_point='POINT (1.65 42.55)', pharmacy_close_point='POINT (1.58 42.54)'),
+            Row(hospital_id='N666793602', pharmacy_id='N4984739294', distance_rounded=4127.0,
+                hospital_close_point='POINT (1.63 42.55)', pharmacy_close_point='POINT (1.58 42.54)'),
+            Row(hospital_id='N666793607', pharmacy_id='N690708520', distance_rounded=5929.0,
+                hospital_close_point='POINT (1.66 42.54)', pharmacy_close_point='POINT (1.73 42.54)'),
+            Row(hospital_id='N666793610', pharmacy_id=None, distance_rounded=None, hospital_close_point=None,
+                pharmacy_close_point=None),
+            Row(hospital_id='W194554955', pharmacy_id='N5723978577', distance_rounded=261.0,
+                hospital_close_point='POINT (1.53 42.51)', pharmacy_close_point='POINT (1.53 42.51)')
         ]

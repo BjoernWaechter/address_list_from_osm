@@ -77,6 +77,7 @@ class GermanAddresses:
                 "plz_raw": "element_at(tags, 'addr:postcode')",
                 "city_raw": "element_at(tags, 'addr:city')"
             },
+            centroid_column="address_point",
             id_column="id"
         )
 
@@ -92,8 +93,8 @@ class GermanAddresses:
             "street",
             "housenumber",
             "IFNULL(plz_raw, plz) plz",
-            "latitude",
-            "longitude",
+            "ST_X(address_point) as longitude",
+            "ST_Y(address_point) as latitude",
             "address_point"
         )
 

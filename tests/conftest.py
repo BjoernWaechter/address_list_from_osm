@@ -6,6 +6,7 @@ from pyspark.sql import SparkSession
 from sedona.spark import SedonaContext
 
 from osm_address.osm import OsmData
+from osm_address.transform.get_points import get_points_from_nodes_and_ways
 
 
 class SparkTestContext:
@@ -50,3 +51,36 @@ def test_context():
 
     yield SparkTestContext(spark, OsmData(nodes=df_raw_node, ways=df_raw_way, relations=df_raw_relation))
     spark.stop()
+
+
+@pytest.fixture(scope="session")
+def geo_join_context(test_context):
+
+    df_hospital = get_points_from_nodes_and_ways(
+        osm_data=test_context.osm_data,
+        osm_filter="element_at(tags, 'amenity') = 'hospital'",
+        geometry_column="hospital_geom",
+        id_column="hospital_id"
+    ).drop(
+        "longitude",
+        "latitude",
+        "tags"
+    )
+
+    df_pharmacy = get_points_from_nodes_and_ways(
+        osm_data=test_context.osm_data,
+        osm_filter="element_at(tags, 'amenity') = 'pharmacy'",
+        additional_columns={"hospital": "element_at(tags, 'name')"},
+        centroid_column="pharmacy_point",
+        id_column="pharmacy_id"
+    ).drop(
+        "longitude",
+        "latitude",
+        "tags"
+    )
+
+    yield {
+        "test_context": test_context,
+        "df_hospital": df_hospital,
+        "df_pharmacy": df_pharmacy
+    }

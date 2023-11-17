@@ -1,6 +1,7 @@
 import random
 
 from pyspark.sql import DataFrame
+from pyspark.sql.functions import expr
 
 from osm_address.osm import OsmData, get_polygon_from_nodes
 
@@ -10,8 +11,8 @@ def get_points_from_nodes_and_ways(
         osm_filter: str,
         additional_columns=None,
         id_column=None,
-        point_column="address_point",
-        centroids_only=True
+        geometry_column=None,
+        centroid_column=None
 ) -> DataFrame:
     """
 
@@ -21,8 +22,8 @@ def get_points_from_nodes_and_ways(
         additional_columns: these columns will be added for both nodes and ways
         id_column:  If not None a column named id_column containing the source id will be added
                     for nodes (e.g. N98765) and ways (e.g. W12345)
-        point_column: Name of the column in the result dataframe
-        centroids_only: True: return centroids only, False: return complete geometries of the ways
+        geometry_column: Name of the geometry column in the result dataframe. Can be None
+        centroid_column: Name of the centroid column in the result dataframe. Can be None
 
     Returns:
         dataframe with points from nodes plus the center of polygons from ways
@@ -34,59 +35,73 @@ def get_points_from_nodes_and_ways(
     if additional_columns is None:
         extra_node_columns = []
         extra_way_columns = []
-        extra_col_names = []
     else:
         extra_node_columns = [f"{x[1]} as {x[0]}" for x in additional_columns.items()]
         extra_way_columns = [f"{x[1]} as {x[0]}" for x in additional_columns.items()]
-        extra_col_names = list(additional_columns.keys())
 
     if id_column:
         id_column_name = id_column
+        extra_node_columns += [id_column_name]
+        extra_way_columns += [id_column_name]
     else:
         id_column_name = f"id_{random.randint(1,999999)}"
 
-    extra_col_names += [id_column_name]
-    extra_node_columns += [f"concat('N', id) as {id_column_name}"]
-    extra_way_columns += [f"concat('W', id) as {id_column_name}"]
+    node_geom_columns = []
+    way_geom_columns = []
+    geom_col_names = []
 
-    df_raw_address_node = df_raw_address_node.selectExpr(
+    if centroid_column:
+        node_geom_columns.append(
+            f"ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20))) as {centroid_column}"
+        )
+        way_geom_columns.append(f"ST_Centroid(way_polygon) as {centroid_column}")
+        geom_col_names.append(centroid_column)
+
+    if geometry_column:
+        node_geom_columns.append(
+            f"ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20))) as {geometry_column}"
+        )
+        way_geom_columns.append(f"way_polygon as {geometry_column}")
+        geom_col_names.append(geometry_column)
+
+    df_raw_address_node = df_raw_address_node.withColumnRenamed(
+        "id",
+        "temp_id_col"
+    ).withColumn(
+        id_column_name,
+        expr(f"concat('N', temp_id_col)")
+    ).drop(
+        "temp_id_col"
+    ).selectExpr(
+        "*",
+        *node_geom_columns
+    ).selectExpr(
         *extra_node_columns,
-        "longitude",
-        "latitude",
-        "tags",
-        f"ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20))) as {point_column}"
+        *geom_col_names
     )
 
-    df_raw_address_way = df_raw_address_way.selectExpr(
-        "nodes",
-        "tags",
-        *extra_way_columns
+    df_raw_address_way = df_raw_address_way.withColumn(
+        "temp_id_col",
+        expr(f"concat('W', id) as {id_column_name}")
+    ).drop(
+        "id"
     )
-
-    if centroids_only:
-        node_geometry = f"ST_Centroid(way_polygon) as {point_column}"
-    else:
-        node_geometry = f"way_polygon as {point_column}"
 
     df_raw_address_way_geo = get_polygon_from_nodes(
         df_way=df_raw_address_way,
         df_node=osm_data.nodes,
         output_col="way_polygon",
-        way_id_column_name=id_column_name
+        way_id_column_name="temp_id_col"
+    ).withColumnRenamed(
+        "temp_id_col", id_column_name
     ).selectExpr(
         "*",
-        node_geometry
+        *way_geom_columns
     ).selectExpr(
-        *extra_col_names,
-        f"ST_X({point_column}) as longitude",
-        f"ST_Y({point_column}) as latitude",
-        "tags",
-        f"{point_column}"
+        *extra_way_columns,
+        *geom_col_names
     )
 
     df_raw_address = df_raw_address_node.union(df_raw_address_way_geo)
 
-    if not id_column:
-        return df_raw_address.drop(id_column_name)
-    else:
-        return df_raw_address
+    return df_raw_address

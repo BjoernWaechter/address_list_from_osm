@@ -55,8 +55,9 @@ def join_nearest_geometry(
         partition_count=1000,
         distance_meter_column="distance",
         max_meter=5000,
-        join_type="leftouter"
-
+        join_type="leftouter",
+        closest_point_column_1=None,
+        closest_point_column_2=None
 ):
     check_for_duplicate_columns(
         df_1=df_in_1,
@@ -100,6 +101,18 @@ def join_nearest_geometry(
             f"   ELSE NULL "
             f"END")
     )
+
+    if closest_point_column_1:
+        df_dist_result = df_dist_result.withColumn(
+            closest_point_column_1,
+            expr(f"ST_Transform(ST_ClosestPoint({epsg_col_1}, {epsg_col_2}), '{epsg_meter_based}', '{epsg_1}')")
+        )
+
+    if closest_point_column_2:
+        df_dist_result = df_dist_result.withColumn(
+            closest_point_column_2,
+            expr(f"ST_Transform(ST_ClosestPoint({epsg_col_2}, {epsg_col_1}), '{epsg_meter_based}', '{epsg_2}')")
+        )
 
     df_nearest_only = remove_duplicate_rows(
         df_input=df_dist_result,
