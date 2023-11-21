@@ -75,6 +75,9 @@ def join_nearest_geometry(
     ).withColumn(
         unique_id_col,
         expr("monotonically_increasing_id()")
+    ).withColumn(
+        f"{epsg_col_1}_buffer",
+        expr(f"ST_Buffer({epsg_col_1}, {max_meter})")
     )
 
     df_in_2_epsg = df_in_2.withColumn(
@@ -82,25 +85,25 @@ def join_nearest_geometry(
         expr(f"ST_Transform({column_name_2}, '{epsg_2}', '{epsg_meter_based}')")
     )
 
-    df_max_distance = df_in_1_epsg.repartition(partition_count).join(
+    df_buffer_join = df_in_1_epsg.repartition(partition_count).join(
         other=df_in_2_epsg,
-        on=expr(f"ST_Distance("
-                f"{epsg_col_1}, "
-                f"{epsg_col_2}) <= {max_meter}"),
+        on=expr(f"ST_Intersects({epsg_col_2}, {epsg_col_1}_buffer)"),
         how=join_type
     )
 
-    df_dist_result = df_max_distance.withColumn(
+    df_distance = df_buffer_join.withColumn(
         distance_meter_column,
         expr(
             f"CASE "
-            f"   WHEN {column_name_2}_{epsg_meter_based.replace(':','_')} IS NOT NULL THEN "
+            f"   WHEN {epsg_col_2} IS NOT NULL THEN "
             f"      ST_Distance("
             f"{epsg_col_1}, "
             f"{epsg_col_2}) "
             f"   ELSE NULL "
             f"END")
     )
+
+    df_dist_result = df_distance.filter(f"{distance_meter_column} <= {max_meter} OR {distance_meter_column} IS NULL")
 
     if closest_point_column_1:
         df_dist_result = df_dist_result.withColumn(

@@ -60,6 +60,7 @@ def geo_join_context(test_context):
         osm_data=test_context.osm_data,
         osm_filter="element_at(tags, 'amenity') = 'hospital'",
         geometry_column="hospital_geom",
+        centroid_column="hospital_point",
         id_column="hospital_id"
     ).drop(
         "longitude",
@@ -71,6 +72,7 @@ def geo_join_context(test_context):
         osm_data=test_context.osm_data,
         osm_filter="element_at(tags, 'amenity') = 'pharmacy'",
         additional_columns={"hospital": "element_at(tags, 'name')"},
+        geometry_column="pharmacy_geom",
         centroid_column="pharmacy_point",
         id_column="pharmacy_id"
     ).drop(
