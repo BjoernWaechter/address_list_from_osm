@@ -8,6 +8,9 @@ from osm_address.transform import remove_duplicate_rows
 from osm_address.utils.schema import check_for_duplicate_columns
 
 
+random.seed(42)
+
+
 def join_point_in_multipolygon(
         df_in: DataFrame,
         point_column: str,
@@ -57,7 +60,8 @@ def join_nearest_geometry(
         max_meter=5000,
         join_type="leftouter",
         closest_point_column_1=None,
-        closest_point_column_2=None
+        closest_point_column_2=None,
+        s2_level=None
 ):
     check_for_duplicate_columns(
         df_1=df_in_1,
@@ -85,11 +89,38 @@ def join_nearest_geometry(
         expr(f"ST_Transform({column_name_2}, '{epsg_2}', '{epsg_meter_based}')")
     )
 
-    df_buffer_join = df_in_1_epsg.repartition(partition_count).join(
-        other=df_in_2_epsg,
-        on=expr(f"ST_Intersects({epsg_col_2}, {epsg_col_1}_buffer)"),
-        how=join_type
-    )
+    if s2_level:
+
+        df_in_1_buffer = df_in_1_epsg.withColumn(
+            f"{column_name_1}_buffer",
+            expr(f"ST_Transform({epsg_col_1}_buffer, '{epsg_meter_based}', '{epsg_1}')")
+        )
+
+        df_in_1_epsg_s2 = df_in_1_buffer.withColumn(
+            f"{column_name_1}_buffer_s2",
+            expr(f"explode(ST_S2CellIDs({column_name_1}_buffer, {s2_level}))")
+        )
+
+        df_in_2_epsg_s2 = df_in_2_epsg.withColumn(
+            f"{column_name_2}_s2",
+            expr(f"explode(ST_S2CellIDs({column_name_2}, {s2_level}))")
+        )
+
+        df_buffer_join = df_in_1_epsg_s2.repartition(partition_count).join(
+            other=df_in_2_epsg_s2,
+            on=expr(
+                f"{column_name_1}_buffer_s2 = {column_name_2}_s2 AND "
+                f"ST_Intersects({epsg_col_2}, {epsg_col_1}_buffer)"),
+            how=join_type
+        )
+
+    else:
+
+        df_buffer_join = df_in_1_epsg.repartition(partition_count).join(
+            other=df_in_2_epsg,
+            on=expr(f"ST_Intersects({epsg_col_2}, {epsg_col_1}_buffer)"),
+            how=join_type
+        )
 
     df_distance = df_buffer_join.withColumn(
         distance_meter_column,
