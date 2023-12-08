@@ -1,6 +1,6 @@
 import random
 
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, Column
 from pyspark.sql.functions import expr
 
 from osm_address.osm import OsmData, get_polygon_from_nodes
@@ -19,7 +19,8 @@ def get_points_from_nodes_and_ways(
     Args:
         osm_data: input of all osm data of a specific region
         osm_filter: this filter will be applied to nodes and ways
-        additional_columns: these columns will be added for both nodes and ways
+        additional_columns: these columns will be added for both nodes and ways.
+                            String and column is supported as value
         id_column:  If not None a column named id_column containing the source id will be added
                     for nodes (e.g. N98765) and ways (e.g. W12345)
         geometry_column: Name of the geometry column in the result dataframe. Can be None
@@ -33,16 +34,15 @@ def get_points_from_nodes_and_ways(
     df_raw_address_way = osm_data.ways.where(osm_filter)
 
     if additional_columns is None:
-        extra_node_columns = []
-        extra_way_columns = []
+        extra_columns = []
     else:
-        extra_node_columns = [f"{x[1]} as {x[0]}" for x in additional_columns.items()]
-        extra_way_columns = [f"{x[1]} as {x[0]}" for x in additional_columns.items()]
+        extra_columns = [
+            (x[1] if isinstance(x[1], Column) else expr(x[1])).alias(x[0]) for x in additional_columns.items()
+        ]
 
     if id_column:
         id_column_name = id_column
-        extra_node_columns += [id_column_name]
-        extra_way_columns += [id_column_name]
+        extra_columns += [id_column_name]
     else:
         id_column_name = f"id_{random.randint(1,999999)}"
 
@@ -52,16 +52,16 @@ def get_points_from_nodes_and_ways(
 
     if centroid_column:
         node_geom_columns.append(
-            f"ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20))) as {centroid_column}"
+            expr("ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20)))").alias(centroid_column)
         )
-        way_geom_columns.append(f"ST_Centroid(way_polygon) as {centroid_column}")
+        way_geom_columns.append(expr("ST_Centroid(way_polygon)").alias(centroid_column))
         geom_col_names.append(centroid_column)
 
     if geometry_column:
         node_geom_columns.append(
-            f"ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20))) as {geometry_column}"
+            expr("ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20)))").alias(geometry_column)
         )
-        way_geom_columns.append(f"way_polygon as {geometry_column}")
+        way_geom_columns.append(expr("way_polygon").alias(geometry_column))
         geom_col_names.append(geometry_column)
 
     df_raw_address_node = df_raw_address_node.withColumnRenamed(
@@ -72,11 +72,11 @@ def get_points_from_nodes_and_ways(
         expr(f"concat('N', temp_id_col)")
     ).drop(
         "temp_id_col"
-    ).selectExpr(
-        "*",
+    ).select(
+        expr("*"),
         *node_geom_columns
-    ).selectExpr(
-        *extra_node_columns,
+    ).select(
+        *extra_columns,
         *geom_col_names
     )
 
@@ -94,11 +94,11 @@ def get_points_from_nodes_and_ways(
         way_id_column_name="temp_id_col"
     ).withColumnRenamed(
         "temp_id_col", id_column_name
-    ).selectExpr(
-        "*",
+    ).select(
+        expr("*"),
         *way_geom_columns
-    ).selectExpr(
-        *extra_way_columns,
+    ).select(
+        *extra_columns,
         *geom_col_names
     )
 
